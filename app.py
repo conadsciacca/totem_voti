@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, send_file, session
 from werkzeug.utils import secure_filename
+from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
 from datetime import datetime
 from io import StringIO
@@ -12,10 +13,8 @@ from sqlalchemy.orm import sessionmaker, declarative_base, relationship, scoped_
 app = Flask(__name__)
 app.secret_key = "TotemAdminPhabio@2025"
 
-# Leggi DATABASE_URL da variabile d'ambiente
 DATABASE_URL = os.environ.get("DATABASE_URL")
-if DATABASE_URL.startswith("postgres://"):
-    # Render a volte usa postgres:// invece di postgresql://
+if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 engine = create_engine(DATABASE_URL)
@@ -54,16 +53,52 @@ class Voto(Base):
 # ---------------- DB INIT ----------------
 def init_db():
     Base.metadata.create_all(bind=engine)
-
     db = SessionLocal()
-    if db.query(Utente).count() == 0:
-        db.add_all([
-            Utente(username="admin_sciacca", password="mypass1", role="admin", store="pdv_sciacca"),
-            Utente(username="admin_sancipirello", password="mypass2", role="admin", store="pdv_sancipirello"),
-            Utente(username="user_sciacca", password="pass1", role="store", store="pdv_sciacca"),
-            Utente(username="user_sancipirello", password="pass2", role="store", store="pdv_sancipirello"),
-        ])
-        db.commit()
+
+    # utenti da creare
+    auto_users = [
+        {
+            "username": "admin_sancipirello",
+            "password_env": "PWD_ADMIN_SANCIPIPRELLO",
+            "role": "admin",
+            "store": "pdv_sancipirello"
+        },
+        {
+            "username": "admin_sciacca",
+            "password_env": "PWD_ADMIN_SCIACCA",
+            "role": "admin",
+            "store": "pdv_sciacca"
+        },
+        {
+            "username": "user_sancipirello",
+            "password_env": "PWD_USER_SANCIPIRELLO",
+            "role": "store",
+            "store": "pdv_sancipirello"
+        },
+        {
+            "username": "user_sciacca",
+            "password_env": "PWD_USER_SCIACCA",
+            "role": "store",
+            "store": "pdv_sciacca"
+        }
+    ]
+
+    for u in auto_users:
+        pwd = os.getenv(u["password_env"])
+        if pwd:
+            exists = db.query(Utente).filter_by(username=u["username"]).first()
+            if not exists:
+                hashed = generate_password_hash(pwd)
+                db.add(Utente(
+                    username=u["username"],
+                    password=hashed,
+                    role=u["role"],
+                    store=u["store"]
+                ))
+                print(f"Creato utente {u['username']} da {u['password_env']}")
+        else:
+            print(f"ATTENZIONE: variabile {u['password_env']} non trovata!")
+    db.commit()
     db.close()
 
 # ---------------- UTILS ----------------
@@ -96,9 +131,9 @@ def login():
         user = request.form['username']
         pwd = request.form['password']
         db = SessionLocal()
-        u = db.query(Utente).filter(Utente.username==user, Utente.password==pwd).first()
+        u = db.query(Utente).filter(Utente.username==user).first()
         db.close()
-        if u:
+        if u and check_password_hash(u.password, pwd):
             session['user'] = u.username
             session['role'] = u.role
             session['store'] = u.store
