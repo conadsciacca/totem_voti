@@ -59,7 +59,7 @@ def init_db():
     auto_users = [
         {
             "username": "admin_sancipirello",
-            "password_env": "PWD_ADMIN_SANCIPIPRELLO",
+            "password_env": "PWD_ADMIN_SANCIPIRELLO",
             "role": "admin",
             "store": "pdv_sancipirello"
         },
