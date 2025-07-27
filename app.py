@@ -17,7 +17,7 @@ def init_db():
     with sqlite3.connect(DB) as conn:
         c = conn.cursor()
 
-        # 1. Tabella utenti
+        # Tabella utenti
         c.execute('''
             CREATE TABLE IF NOT EXISTS utenti (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -28,7 +28,7 @@ def init_db():
             )
         ''')
 
-        # 2. Tabella dipendenti (creazione base se non esiste)
+        # Tabella dipendenti
         c.execute('''
             CREATE TABLE IF NOT EXISTS dipendenti (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -37,12 +37,12 @@ def init_db():
             )
         ''')
 
-        # 2.b Aggiunge colonna store_id se non esiste
+        # Aggiunge colonna store_id se non esiste
         cols = [row[1] for row in c.execute("PRAGMA table_info(dipendenti)")]
         if "store_id" not in cols:
             c.execute("ALTER TABLE dipendenti ADD COLUMN store_id TEXT")
 
-        # 3. Tabella voti
+        # Tabella voti
         c.execute('''
             CREATE TABLE IF NOT EXISTS voti (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -53,19 +53,19 @@ def init_db():
             )
         ''')
 
-        # 4. Inserisce utenti di default se non presenti
+        # Inserisce utenti base solo se non ci sono
         c.execute("SELECT COUNT(*) FROM utenti")
         if c.fetchone()[0] == 0:
-            # Admin negozi
+            # Admins
             c.execute("INSERT INTO utenti (username,password,role,store) VALUES (?,?,?,?)",
-                      ("admin1","mypass1","admin","negozio1"))
+                      ("admin_sciacca","mypass1","admin","pdv_sciacca"))
             c.execute("INSERT INTO utenti (username,password,role,store) VALUES (?,?,?,?)",
-                      ("admin2","mypass2","admin","negozio2"))
-            # Utenti votazione
+                      ("admin_sancipirello","mypass2","admin","pdv_sancipirello"))
+            # Utenti normali
             c.execute("INSERT INTO utenti (username,password,role,store) VALUES (?,?,?,?)",
-                      ("user1","pass1","store","negozio1"))
+                      ("user_sciacca","pass1","store","pdv_sciacca"))
             c.execute("INSERT INTO utenti (username,password,role,store) VALUES (?,?,?,?)",
-                      ("user2","pass2","store","negozio2"))
+                      ("user_sancipirello","pass2","store","pdv_sancipirello"))
 
         conn.commit()
 
@@ -168,19 +168,16 @@ def admin():
     if request.method == 'POST':
         nome = request.form['nome']
         file = request.files['foto']
-
         if nome and file and allowed_file(file.filename):
             filename = secure_filename(file.filename)
             filepath = os.path.join(UPLOAD_FOLDER, filename)
             file.save(filepath)
-
             with sqlite3.connect(DB) as conn:
                 conn.execute(
                     "INSERT INTO dipendenti (nome, foto, store_id) VALUES (?, ?, ?)",
                     (nome, filename, store_id)
                 )
                 conn.commit()
-
             return redirect(url_for('admin'))
 
     dip = get_dipendenti(store_id)
@@ -189,17 +186,17 @@ def admin():
 @app.route('/delete/<int:dipendente_id>', methods=['POST'])
 @login_required(role='admin')
 def delete_dipendente(dipendente_id):
-    store = session.get('store')
+    store_id = session.get('store')
     with sqlite3.connect(DB) as conn:
         c = conn.cursor()
-        c.execute("SELECT foto FROM dipendenti WHERE id=? AND store_id=?", (dipendente_id, store))
+        c.execute("SELECT foto FROM dipendenti WHERE id=? AND store_id=?", (dipendente_id, store_id))
         row = c.fetchone()
         if row:
             foto = row[0]
             foto_path = os.path.join(UPLOAD_FOLDER, foto)
             if os.path.exists(foto_path):
                 os.remove(foto_path)
-        conn.execute("DELETE FROM dipendenti WHERE id=? AND store_id=?", (dipendente_id, store))
+        conn.execute("DELETE FROM dipendenti WHERE id=? AND store_id=?", (dipendente_id, store_id))
         conn.execute("DELETE FROM voti WHERE dipendente_id=?", (dipendente_id,))
         conn.commit()
     return redirect(url_for('admin'))
@@ -209,24 +206,24 @@ def delete_dipendente(dipendente_id):
 def edit_dipendente(dipendente_id):
     nuovo_nome = request.form['nome']
     file = request.files.get('foto')
-    store = session.get('store')
+    store_id = session.get('store')
     with sqlite3.connect(DB) as conn:
         if file and file.filename and allowed_file(file.filename):
             filename = secure_filename(file.filename)
             filepath = os.path.join(UPLOAD_FOLDER, filename)
             file.save(filepath)
             conn.execute("UPDATE dipendenti SET nome=?, foto=? WHERE id=? AND store_id=?",
-                         (nuovo_nome, filename, dipendente_id, store))
+                         (nuovo_nome, filename, dipendente_id, store_id))
         else:
             conn.execute("UPDATE dipendenti SET nome=? WHERE id=? AND store_id=?",
-                         (nuovo_nome, dipendente_id, store))
+                         (nuovo_nome, dipendente_id, store_id))
         conn.commit()
     return redirect(url_for('admin'))
 
 @app.route('/stats')
 @login_required(role='admin')
 def stats():
-    store = session.get('store')
+    store_id = session.get('store')
     with sqlite3.connect(DB) as conn:
         c = conn.cursor()
         c.execute('''
@@ -235,21 +232,21 @@ def stats():
             LEFT JOIN voti v ON d.id=v.dipendente_id
             WHERE d.store_id=?
             GROUP BY d.id
-        ''', (store,))
+        ''', (store_id,))
         stats = c.fetchall()
     return render_template('stats.html', stats=stats)
 
 @app.route('/export_csv')
 @login_required(role='admin')
 def export_csv():
-    store = session.get('store')
+    store_id = session.get('store')
     with sqlite3.connect(DB) as conn:
         c = conn.cursor()
         c.execute('''
             SELECT v.fidelity,d.nome,v.voto 
             FROM voti v JOIN dipendenti d ON v.dipendente_id=d.id 
             WHERE d.store_id=?
-        ''', (store,))
+        ''', (store_id,))
         rows = c.fetchall()
 
     si = StringIO()
@@ -257,6 +254,7 @@ def export_csv():
     cw.writerow(["fidelity","dipendente","voto"])
     cw.writerows(rows)
     output = si.getvalue()
+
     return send_file(
         StringIO(output),
         mimetype="text/csv",
