@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, send_file, session
 from werkzeug.utils import secure_filename
+from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
 import sqlite3, os, csv
 from datetime import datetime
@@ -56,23 +57,29 @@ def init_db():
         # Inserisce utenti base solo se non ci sono
         c.execute("SELECT COUNT(*) FROM utenti")
         if c.fetchone()[0] == 0:
+            # Legge password da variabili ambiente
+            admin_sciacca_pwd = generate_password_hash(os.environ.get("PWD_ADMIN_SCIACCA", "mypass1"))
+            admin_sancipirello_pwd = generate_password_hash(os.environ.get("PWD_ADMIN_SANCIPIRELLO", "mypass2"))
+            user_sciacca_pwd = generate_password_hash(os.environ.get("PWD_USER_SCIACCA", "pass1"))
+            user_sancipirello_pwd = generate_password_hash(os.environ.get("PWD_USER_SANCIPIRELLO", "pass2"))
+
             # Admins
             c.execute("INSERT INTO utenti (username,password,role,store) VALUES (?,?,?,?)",
-                      ("admin_sciacca","mypass1","admin","pdv_sciacca"))
+                      ("admin_sciacca", admin_sciacca_pwd, "admin","pdv_sciacca"))
             c.execute("INSERT INTO utenti (username,password,role,store) VALUES (?,?,?,?)",
-                      ("admin_sancipirello","mypass2","admin","pdv_sancipirello"))
+                      ("admin_sancipirello", admin_sancipirello_pwd, "admin","pdv_sancipirello"))
             # Utenti normali
             c.execute("INSERT INTO utenti (username,password,role,store) VALUES (?,?,?,?)",
-                      ("user_sciacca","pass1","store","pdv_sciacca"))
+                      ("user_sciacca", user_sciacca_pwd, "store","pdv_sciacca"))
             c.execute("INSERT INTO utenti (username,password,role,store) VALUES (?,?,?,?)",
-                      ("user_sancipirello","pass2","store","pdv_sancipirello"))
+                      ("user_sancipirello", user_sancipirello_pwd, "store","pdv_sancipirello"))
 
         conn.commit()
 
 def get_dipendenti(store_id):
     with sqlite3.connect(DB) as conn:
         c = conn.cursor()
-        c.execute("SELECT id, nome, foto FROM dipendenti WHERE store_id=?", (store_id,))
+        c.execute("SELECT id, nome, foto, store_id FROM dipendenti WHERE store_id=?", (store_id,))
         return c.fetchall()
 
 def allowed_file(filename):
@@ -99,10 +106,11 @@ def login():
         pwd = request.form['password']
         with sqlite3.connect(DB) as conn:
             c = conn.cursor()
-            c.execute("SELECT role, store FROM utenti WHERE username=? AND password=?", (user, pwd))
+            c.execute("SELECT password, role, store FROM utenti WHERE username=?", (user,))
             row = c.fetchone()
-        if row:
-            role, store = row
+
+        if row and check_password_hash(row[0], pwd):
+            _, role, store = row
             session['user'] = user
             session['role'] = role
             session['store'] = store
