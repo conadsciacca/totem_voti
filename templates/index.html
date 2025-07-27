@@ -3,29 +3,47 @@
 <head>
 <meta charset="UTF-8">
 <title>Totem Voti</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Slab:wght@400;700&display=swap" rel="stylesheet">
 <style>
   body {
-    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    font-family: 'Roboto Slab', serif;
+    background: #e42231;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: white;
+  }
+  .container {
     text-align: center;
-    margin-top: 80px;
+    width: 100%;
+    max-width: 350px;
+  }
+  h1 {
+    font-size: 28px;
+    margin-bottom: 30px;
+    font-weight: 700;
   }
   input {
     font-size: 28px;
     padding: 15px;
     text-align: center;
-    width: 300px;
+    width: 100%;
+    border: none;
+    border-radius: 12px;
+    outline: none;
+    color: #333;
   }
 </style>
 <script>
 document.addEventListener("DOMContentLoaded", () => {
   const input = document.getElementById("codice");
-  input.focus(); // mette il focus automatico sul campo
-
+  input.focus();
   input.addEventListener("input", () => {
-    // Rimuove tutti i caratteri che non sono numeri
     input.value = input.value.replace(/[^0-9]/g,'');
-
-    // Quando sono 13 cifre, invia il form automaticamente
     if (input.value.length === 13) {
       document.getElementById("formCodice").submit();
     }
@@ -34,8 +52,11 @@ document.addEventListener("DOMContentLoaded", () => {
 </script>
 </head>
 <body>
-  <form id="formCodice" method="post" autocomplete="off">
-    <input type="text" id="codice" name="codice" maxlength="13" inputmode="numeric" pattern="[0-9]*" autocomplete="off">
-  </form>
+  <div class="container">
+    <h1>Inserisci la tua tessera</h1>
+    <form id="formCodice" method="post" autocomplete="off">
+      <input type="text" id="codice" name="codice" maxlength="13" inputmode="numeric" pattern="[0-9]*" autocomplete="off">
+    </form>
+  </div>
 </body>
 </html>
