@@ -42,8 +42,10 @@ def get_dipendenti():
 def index():
     if request.method == 'POST':
         codice = request.form['codice']
-    if codice.isdigit() and len(codice) == 13:
-        return redirect(url_for('dipendenti_list', fidelity=codice))
+        # Controllo: solo numeri e lunghezza 13
+        if codice.isdigit() and len(codice) == 13:
+            return redirect(url_for('dipendenti_list', fidelity=codice))
+    # Se è GET o il codice non è valido, mostro la pagina
     return render_template('index.html')
 
 @app.route('/dipendenti/<fidelity>')
