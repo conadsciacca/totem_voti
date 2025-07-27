@@ -22,8 +22,21 @@ function checkLen(input) {
 </a>
 
 
-<form method="post" id="form">
-  <input type="text" name="codice" maxlength="13" oninput="checkLen(this)" autofocus>
+<form method="post" autocomplete="off">
+  <input type="text" style="display:none" autocomplete="false" name="hidden-field">
+  
+  <input 
+      type="text" 
+      name="codice" 
+      inputmode="numeric" 
+      pattern="[0-9]*" 
+      maxlength="13" 
+      required 
+      autocomplete="off"
+      oninput="this.value=this.value.replace(/[^0-9]/g,'');"
+      placeholder="Inserisci 13 cifre"
+  >
 </form>
+
 </body>
 </html>
