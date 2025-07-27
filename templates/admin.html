@@ -4,66 +4,97 @@
     <meta charset="UTF-8">
     <title>Gestione Dipendenti</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        h1 { display: inline-block; }
-        .header {
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        nav {
+            background-color: #f0f0f0;
+            padding: 10px;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            border-bottom: 1px solid #ccc;
         }
-        .user-info {
-            font-size: 14px;
-            color: #555;
+        nav a {
+            margin-right: 10px;
+            text-decoration: none;
+            color: #333;
         }
-        table { border-collapse: collapse; width: 100%; margin-top: 20px; }
-        th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
-        th { background-color: #f5f5f5; }
-        img { max-height: 80px; }
-        .actions form { display: inline-block; }
+        nav a:hover {
+            text-decoration: underline;
+        }
+        .container {
+            padding: 20px;
+        }
+        .dipendente {
+            display: inline-block;
+            text-align: center;
+            margin: 10px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            width: 180px;
+        }
+        .dipendente img {
+            width: 120px;
+            height: 120px;
+            object-fit: cover;
+            border-radius: 10px;
+        }
+        form {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+        }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>Gestione Dipendenti</h1>
-        <div class="user-info">
-            Loggato come: <strong>{{ session['user'] }}</strong> ({{ session['store'] }})
+    <!-- Barra di navigazione -->
+    <nav>
+        <div>
+            <a href="{{ url_for('index') }}">Home</a> |
+            <a href="{{ url_for('admin') }}">Gestione Dipendenti</a> |
+            <a href="{{ url_for('stats') }}">Statistiche</a>
+        </div>
+        <div>
+            Utente loggato: <b>{{ session['user'] }}</b> ({{ session['store'] }})
             | <a href="{{ url_for('logout') }}">Logout</a>
         </div>
+    </nav>
+
+    <div class="container">
+        <h1>Gestione Dipendenti - {{ session['store'] }}</h1>
+
+        <!-- Lista dipendenti -->
+        {% if dipendenti %}
+            {% for id, nome, foto in dipendenti %}
+                <div class="dipendente">
+                    <img src="{{ url_for('static', filename='foto/' ~ foto) }}" alt="{{ nome }}">
+                    <p>{{ nome }}</p>
+                    <form action="{{ url_for('delete_dipendente', dipendente_id=id) }}" method="post">
+                        <button type="submit">Elimina</button>
+                    </form>
+                    <form action="{{ url_for('edit_dipendente', dipendente_id=id) }}" method="post" enctype="multipart/form-data">
+                        <input type="text" name="nome" placeholder="Nuovo nome" required>
+                        <input type="file" name="foto">
+                        <button type="submit">Modifica</button>
+                    </form>
+                </div>
+            {% endfor %}
+        {% else %}
+            <p>Nessun dipendente inserito.</p>
+        {% endif %}
+
+        <!-- Aggiungi nuovo dipendente -->
+        <h2>Aggiungi dipendente</h2>
+        <form action="{{ url_for('admin') }}" method="post" enctype="multipart/form-data">
+            <input type="text" name="nome" placeholder="Nome dipendente" required>
+            <input type="file" name="foto" required>
+            <button type="submit">Aggiungi</button>
+        </form>
     </div>
-
-    <h2>Aggiungi nuovo dipendente</h2>
-    <form method="POST" enctype="multipart/form-data">
-        Nome: <input type="text" name="nome" required>
-        Foto: <input type="file" name="foto" accept="image/*" required>
-        <button type="submit">Aggiungi</button>
-    </form>
-
-    <h2>Lista Dipendenti</h2>
-    <table>
-        <tr>
-            <th>Foto</th>
-            <th>Nome</th>
-            <th>Azioni</th>
-        </tr>
-        {% for id, nome, foto, store_id in dipendenti %}
-        <tr>
-            <td><img src="{{ url_for('static', filename='foto/' ~ foto) }}" alt="{{ nome }}"></td>
-            <td>{{ nome }}</td>
-            <td class="actions">
-                <!-- Modifica -->
-                <form action="{{ url_for('edit_dipendente', dipendente_id=id) }}" method="post" enctype="multipart/form-data">
-                    <input type="text" name="nome" value="{{ nome }}" required>
-                    <input type="file" name="foto" accept="image/*">
-                    <button type="submit">Modifica</button>
-                </form>
-                <!-- Elimina -->
-                <form action="{{ url_for('delete_dipendente', dipendente_id=id) }}" method="post" onsubmit="return confirm('Sei sicuro di voler eliminare questo dipendente?');">
-                    <button type="submit">Elimina</button>
-                </form>
-            </td>
-        </tr>
-        {% endfor %}
-    </table>
-
 </body>
 </html>
