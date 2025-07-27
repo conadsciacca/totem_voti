@@ -1,9 +1,0 @@
-body { font-family: Arial; text-align: center; }
-.grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; }
-.card { display: block; width: 150px; text-decoration: none; color: black; }
-.card img { width: 100%; height: auto; border-radius: 10px; }
-.card.votato { opacity: 0.3; pointer-events: none; }
-.big { width: 200px; }
-button { font-size: 20px; margin: 5px; padding: 10px 20px; }
-table { margin: auto; border-collapse: collapse; }
-td, th { border: 1px solid #ccc; padding: 5px 10px; }
