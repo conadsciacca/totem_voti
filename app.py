@@ -136,7 +136,7 @@ def logout():
 @app.route('/admin', methods=['GET', 'POST'])
 def admin():
     if not session.get('admin'):
-    return redirect(url_for('login'))
+        return redirect(url_for('login'))
     if request.method == 'POST':
         nome = request.form['nome']
         file = request.files['foto']
