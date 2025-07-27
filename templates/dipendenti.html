@@ -36,7 +36,7 @@
   }
   .grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
     gap: 20px;
     padding: 20px;
   }
@@ -55,7 +55,7 @@
   }
   .card img {
     width: 100%;
-    height: 150px;
+    aspect-ratio: 1 / 1; /* quadrato */
     object-fit: cover;
     border-radius: 8px;
   }
@@ -78,7 +78,7 @@
 <body>
   <header>
     <h1>Seleziona il dipendente</h1>
-    <form action="/" method="get"><button type="submit">Torna</button></form>
+    <form action="/" method="get"><button type="submit">Home</button></form>
   </header>
   <div class="grid">
     {% for d in dipendenti %}
