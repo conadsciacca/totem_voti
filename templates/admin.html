@@ -82,7 +82,7 @@
       <th>Nome</th>
       <th>Azioni</th>
     </tr>
-    {% for id, nome, foto in dipendenti %}
+    {% for id, nome, foto, store_id in dipendenti %}
     <tr>
       <td><img src="{{ url_for('static', filename='foto/' ~ foto) }}" alt="{{ nome }}"></td>
       <td>{{ nome }}</td>
