@@ -1,6 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for, send_file, session
 from werkzeug.utils import secure_filename
-from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
 import sqlite3, os, csv
 from datetime import datetime
@@ -34,14 +33,10 @@ def init_db():
             CREATE TABLE IF NOT EXISTS dipendenti (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 nome TEXT,
-                foto TEXT
+                foto TEXT,
+                store_id TEXT
             )
         ''')
-
-        # Aggiunge colonna store_id se non esiste
-        cols = [row[1] for row in c.execute("PRAGMA table_info(dipendenti)")]
-        if "store_id" not in cols:
-            c.execute("ALTER TABLE dipendenti ADD COLUMN store_id TEXT")
 
         # Tabella voti
         c.execute('''
@@ -57,22 +52,16 @@ def init_db():
         # Inserisce utenti base solo se non ci sono
         c.execute("SELECT COUNT(*) FROM utenti")
         if c.fetchone()[0] == 0:
-            # Legge password da variabili ambiente
-            admin_sciacca_pwd = generate_password_hash(os.environ.get("PWD_ADMIN_SCIACCA", "mypass1"))
-            admin_sancipirello_pwd = generate_password_hash(os.environ.get("PWD_ADMIN_SANCIPIRELLO", "mypass2"))
-            user_sciacca_pwd = generate_password_hash(os.environ.get("PWD_USER_SCIACCA", "pass1"))
-            user_sancipirello_pwd = generate_password_hash(os.environ.get("PWD_USER_SANCIPIRELLO", "pass2"))
-
             # Admins
             c.execute("INSERT INTO utenti (username,password,role,store) VALUES (?,?,?,?)",
-                      ("admin_sciacca", admin_sciacca_pwd, "admin","pdv_sciacca"))
+                      ("admin_sciacca","mypass1","admin","pdv_sciacca"))
             c.execute("INSERT INTO utenti (username,password,role,store) VALUES (?,?,?,?)",
-                      ("admin_sancipirello", admin_sancipirello_pwd, "admin","pdv_sancipirello"))
+                      ("admin_sancipirello","mypass2","admin","pdv_sancipirello"))
             # Utenti normali
             c.execute("INSERT INTO utenti (username,password,role,store) VALUES (?,?,?,?)",
-                      ("user_sciacca", user_sciacca_pwd, "store","pdv_sciacca"))
+                      ("punto_sciacca","pass1","store","pdv_sciacca"))
             c.execute("INSERT INTO utenti (username,password,role,store) VALUES (?,?,?,?)",
-                      ("user_sancipirello", user_sancipirello_pwd, "store","pdv_sancipirello"))
+                      ("punto_sancipirello","pass2","store","pdv_sancipirello"))
 
         conn.commit()
 
@@ -98,6 +87,9 @@ def login_required(role=None):
         return decorated_view
     return wrapper
 
+# INIZIALIZZA SEMPRE IL DATABASE (anche su Render)
+init_db()
+
 # ---------------- ROUTES LOGIN ----------------
 @app.route('/login', methods=['GET','POST'])
 def login():
@@ -108,8 +100,7 @@ def login():
             c = conn.cursor()
             c.execute("SELECT password, role, store FROM utenti WHERE username=?", (user,))
             row = c.fetchone()
-
-        if row and check_password_hash(row[0], pwd):
+        if row and row[0] == pwd:
             _, role, store = row
             session['user'] = user
             session['role'] = role
@@ -272,6 +263,5 @@ def export_csv():
 
 # ---------------- MAIN ----------------
 if __name__ == '__main__':
-    init_db()
     port = int(os.environ.get("PORT", 5050))
     app.run(host='0.0.0.0', port=port)
