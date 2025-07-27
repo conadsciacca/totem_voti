@@ -1,5 +1,4 @@
-flask
+Flask
 gunicorn
 sqlalchemy
 psycopg2-binary
-werkzeug
