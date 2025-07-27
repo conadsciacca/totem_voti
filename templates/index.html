@@ -1,61 +1,66 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-<meta charset="UTF-8">
-<title>Totem Voti</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<link href="https://fonts.googleapis.com/css2?family=Roboto+Slab:wght@400;700&display=swap" rel="stylesheet">
-<style>
-  body {
-    margin: 0;
-    padding: 0;
-    font-family: 'Roboto Slab', serif;
-    background: #e42231;
-    height: 100vh;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    color: white;
-  }
-  .container {
-    text-align: center;
-    width: 100%;
-    max-width: 350px;
-  }
-  h1 {
-    font-size: 28px;
-    margin-bottom: 30px;
-    font-weight: 700;
-  }
-  input {
-    font-size: 28px;
-    padding: 15px;
-    text-align: center;
-    width: 100%;
-    border: none;
-    border-radius: 12px;
-    outline: none;
-    color: #333;
-  }
-</style>
-<script>
-document.addEventListener("DOMContentLoaded", () => {
-  const input = document.getElementById("codice");
-  input.focus();
-  input.addEventListener("input", () => {
-    input.value = input.value.replace(/[^0-9]/g,'');
-    if (input.value.length === 13) {
-      document.getElementById("formCodice").submit();
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Accesso Votazione</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto+Slab&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Roboto Slab', serif;
+      background-color: #e42231;
+      color: white;
+      margin: 0;
+      padding: 0;
+      text-align: center;
     }
-  });
-});
-</script>
+    .container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+    img.logo {
+      width: 150px;
+      height: 150px;
+      object-fit: contain;
+      margin-bottom: 30px;
+    }
+    h1 {
+      font-size: 1.8em;
+      margin-bottom: 20px;
+    }
+    input[type="text"] {
+      font-size: 1.5em;
+      padding: 10px;
+      text-align: center;
+      border: none;
+      border-radius: 8px;
+      outline: none;
+      width: 250px;
+    }
+  </style>
+  <script>
+    window.onload = function() {
+      const codiceInput = document.getElementById("codice");
+      codiceInput.focus();
+      codiceInput.addEventListener("input", function() {
+        if (this.value.length === 13 && /^\d+$/.test(this.value)) {
+          document.getElementById("form").submit();
+        }
+      });
+    };
+  </script>
 </head>
 <body>
   <div class="container">
-    <h1>Inserisci la tua tessera</h1>
-    <form id="formCodice" method="post" autocomplete="off">
-      <input type="text" id="codice" name="codice" maxlength="13" inputmode="numeric" pattern="[0-9]*" autocomplete="off">
+    <!-- Logo sopra il titolo -->
+    <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" class="logo">
+
+    <h1>Scansiona la tua Conad Carta Insieme</h1>
+    <form id="form" method="post">
+      <input type="text" id="codice" name="codice" maxlength="13" autocomplete="off" inputmode="numeric" pattern="[0-9]*">
     </form>
   </div>
 </body>
