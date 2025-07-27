@@ -5,7 +5,7 @@ from datetime import datetime
 from io import StringIO
 
 app = Flask(__name__)
-app.secret_key = "scegli_una_chiave_lunga_e_casuale"
+app.secret_key = "TotemSciacca@2025"
 
 DB = 'database.db'
 
@@ -124,10 +124,11 @@ def login():
     if request.method == 'POST':
         user = request.form['username']
         pwd = request.form['password']
-        # Cambia qui user e password a piacere
         if user == 'admin' and pwd == 'mypass123':
             session['admin'] = True
             return redirect(url_for('admin'))
+        else:
+            return "Credenziali errate", 401
     return render_template('login.html')
 
 @app.route('/logout')
@@ -135,10 +136,13 @@ def logout():
     session.pop('admin', None)
     return redirect(url_for('login'))
 
+
 @app.route('/admin', methods=['GET', 'POST'])
 def admin():
+    # Protezione: se non sei loggato, torna al login
     if not session.get('admin'):
         return redirect(url_for('login'))
+
     if request.method == 'POST':
         nome = request.form['nome']
         file = request.files['foto']
@@ -153,10 +157,8 @@ def admin():
                 )
                 conn.commit()
             return redirect(url_for('admin'))
-
     dip = get_dipendenti()
     return render_template('admin.html', dipendenti=dip)
-
 
 @app.route('/delete/<int:dipendente_id>', methods=['POST'])
 def delete_dipendente(dipendente_id):
