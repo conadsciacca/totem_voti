@@ -57,11 +57,12 @@ def init_db():
             c.executemany("INSERT INTO utenti (username,password,role,store) VALUES (?,?,?,?)", utenti)
             conn.commit()
 
-def get_dipendenti(store):
+def get_dipendenti(store_id):
     with sqlite3.connect(DB) as conn:
         c = conn.cursor()
-        c.execute("SELECT * FROM dipendenti WHERE store=?", (store,))
+        c.execute("SELECT id, nome, foto FROM dipendenti WHERE store_id=?", (store_id,))
         return c.fetchall()
+
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -152,23 +153,29 @@ def vota(fidelity, dipendente_id):
 @app.route('/admin', methods=['GET', 'POST'])
 @login_required(role='admin')
 def admin():
-    store = session.get('store')
+    store_id = session.get('store_id')
+
     if request.method == 'POST':
         nome = request.form['nome']
         file = request.files['foto']
+
         if nome and file and allowed_file(file.filename):
             filename = secure_filename(file.filename)
             filepath = os.path.join(UPLOAD_FOLDER, filename)
             file.save(filepath)
+
             with sqlite3.connect(DB) as conn:
                 conn.execute(
-                    "INSERT INTO dipendenti (nome,foto,store) VALUES (?,?,?)",
-                    (nome, filename, store)
+                    "INSERT INTO dipendenti (nome, foto, store_id) VALUES (?, ?, ?)",
+                    (nome, filename, store_id)
                 )
                 conn.commit()
+
             return redirect(url_for('admin'))
-    dip = get_dipendenti(store)
+
+    dip = get_dipendenti(store_id)
     return render_template('admin.html', dipendenti=dip)
+
 
 @app.route('/delete/<int:dipendente_id>', methods=['POST'])
 @login_required(role='admin')
