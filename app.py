@@ -72,7 +72,8 @@ def init_db():
 def get_dipendenti(store_id):
     with sqlite3.connect(DB) as conn:
         c = conn.cursor()
-        c.execute("SELECT id, nome, foto FROM dipendenti WHERE store_id=?", (store_id,))
+        # Ora ritorna 4 colonne: id, nome, foto, store_id
+        c.execute("SELECT id, nome, foto, store_id FROM dipendenti WHERE store_id=?", (store_id,))
         return c.fetchall()
 
 def allowed_file(filename):
