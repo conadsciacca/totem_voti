@@ -17,7 +17,7 @@ def init_db():
     with sqlite3.connect(DB) as conn:
         c = conn.cursor()
 
-        # 1. Creazione tabella utenti se non esiste
+        # 1. Tabella utenti
         c.execute('''
             CREATE TABLE IF NOT EXISTS utenti (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -28,12 +28,21 @@ def init_db():
             )
         ''')
 
-        # 2. Verifica e aggiunge la colonna store_id a dipendenti se non c'è
+        # 2. Tabella dipendenti (creazione base se non esiste)
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS dipendenti (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nome TEXT,
+                foto TEXT
+            )
+        ''')
+
+        # 2.b Aggiunge colonna store_id se non esiste
         cols = [row[1] for row in c.execute("PRAGMA table_info(dipendenti)")]
         if "store_id" not in cols:
             c.execute("ALTER TABLE dipendenti ADD COLUMN store_id TEXT")
 
-        # 3. Creazione tabella voti se non esiste
+        # 3. Tabella voti
         c.execute('''
             CREATE TABLE IF NOT EXISTS voti (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -44,27 +53,27 @@ def init_db():
             )
         ''')
 
-        # 4. Inserisce utenti base solo se non ci sono
+        # 4. Inserisce utenti di default se non presenti
         c.execute("SELECT COUNT(*) FROM utenti")
         if c.fetchone()[0] == 0:
+            # Admin negozi
             c.execute("INSERT INTO utenti (username,password,role,store) VALUES (?,?,?,?)",
                       ("admin1","mypass1","admin","negozio1"))
             c.execute("INSERT INTO utenti (username,password,role,store) VALUES (?,?,?,?)",
                       ("admin2","mypass2","admin","negozio2"))
+            # Utenti votazione
             c.execute("INSERT INTO utenti (username,password,role,store) VALUES (?,?,?,?)",
-                      ("user1","pass1","user","negozio1"))
+                      ("user1","pass1","store","negozio1"))
             c.execute("INSERT INTO utenti (username,password,role,store) VALUES (?,?,?,?)",
-                      ("user2","pass2","user","negozio2"))
+                      ("user2","pass2","store","negozio2"))
 
         conn.commit()
-
 
 def get_dipendenti(store_id):
     with sqlite3.connect(DB) as conn:
         c = conn.cursor()
         c.execute("SELECT id, nome, foto FROM dipendenti WHERE store_id=?", (store_id,))
         return c.fetchall()
-
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -97,7 +106,6 @@ def login():
             session['user'] = user
             session['role'] = role
             session['store'] = store
-            # Redirect in base al ruolo
             if role == 'admin':
                 return redirect(url_for('admin'))
             else:
@@ -155,7 +163,7 @@ def vota(fidelity, dipendente_id):
 @app.route('/admin', methods=['GET', 'POST'])
 @login_required(role='admin')
 def admin():
-    store_id = session.get('store_id')
+    store_id = session.get('store')
 
     if request.method == 'POST':
         nome = request.form['nome']
@@ -178,21 +186,20 @@ def admin():
     dip = get_dipendenti(store_id)
     return render_template('admin.html', dipendenti=dip)
 
-
 @app.route('/delete/<int:dipendente_id>', methods=['POST'])
 @login_required(role='admin')
 def delete_dipendente(dipendente_id):
     store = session.get('store')
     with sqlite3.connect(DB) as conn:
         c = conn.cursor()
-        c.execute("SELECT foto FROM dipendenti WHERE id=? AND store=?", (dipendente_id, store))
+        c.execute("SELECT foto FROM dipendenti WHERE id=? AND store_id=?", (dipendente_id, store))
         row = c.fetchone()
         if row:
             foto = row[0]
             foto_path = os.path.join(UPLOAD_FOLDER, foto)
             if os.path.exists(foto_path):
                 os.remove(foto_path)
-        conn.execute("DELETE FROM dipendenti WHERE id=? AND store=?", (dipendente_id, store))
+        conn.execute("DELETE FROM dipendenti WHERE id=? AND store_id=?", (dipendente_id, store))
         conn.execute("DELETE FROM voti WHERE dipendente_id=?", (dipendente_id,))
         conn.commit()
     return redirect(url_for('admin'))
@@ -208,10 +215,10 @@ def edit_dipendente(dipendente_id):
             filename = secure_filename(file.filename)
             filepath = os.path.join(UPLOAD_FOLDER, filename)
             file.save(filepath)
-            conn.execute("UPDATE dipendenti SET nome=?, foto=? WHERE id=? AND store=?",
+            conn.execute("UPDATE dipendenti SET nome=?, foto=? WHERE id=? AND store_id=?",
                          (nuovo_nome, filename, dipendente_id, store))
         else:
-            conn.execute("UPDATE dipendenti SET nome=? WHERE id=? AND store=?",
+            conn.execute("UPDATE dipendenti SET nome=? WHERE id=? AND store_id=?",
                          (nuovo_nome, dipendente_id, store))
         conn.commit()
     return redirect(url_for('admin'))
@@ -226,7 +233,7 @@ def stats():
             SELECT d.nome, COUNT(v.voto), ROUND(AVG(v.voto),2)
             FROM dipendenti d
             LEFT JOIN voti v ON d.id=v.dipendente_id
-            WHERE d.store=?
+            WHERE d.store_id=?
             GROUP BY d.id
         ''', (store,))
         stats = c.fetchall()
@@ -241,17 +248,17 @@ def export_csv():
         c.execute('''
             SELECT v.fidelity,d.nome,v.voto 
             FROM voti v JOIN dipendenti d ON v.dipendente_id=d.id 
-            WHERE d.store=?
+            WHERE d.store_id=?
         ''', (store,))
         rows = c.fetchall()
+
     si = StringIO()
     cw = csv.writer(si)
     cw.writerow(["fidelity","dipendente","voto"])
     cw.writerows(rows)
     output = si.getvalue()
-    si.close()
     return send_file(
-        os.path.join(os.getcwd(), 'temp.csv'),
+        StringIO(output),
         mimetype="text/csv",
         as_attachment=True,
         download_name=f"voti_{datetime.now().strftime('%Y%m%d')}.csv"
