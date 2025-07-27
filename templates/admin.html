@@ -28,31 +28,12 @@
         .container {
             padding: 20px;
         }
-        .dipendente {
-            display: inline-block;
-            text-align: center;
-            margin: 10px;
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 10px;
-            width: 180px;
-        }
-        .dipendente img {
-            width: 120px;
-            height: 120px;
-            object-fit: cover;
-            border-radius: 10px;
-        }
         form {
-            margin-top: 20px;
-            padding: 15px;
-            border: 1px solid #ccc;
-            border-radius: 10px;
+            margin-top: 10px;
         }
     </style>
 </head>
 <body>
-    <!-- Barra di navigazione -->
     <nav>
         <div>
             <a href="{{ url_for('index') }}">Home</a> |
@@ -68,27 +49,39 @@
     <div class="container">
         <h1>Gestione Dipendenti - {{ session['store'] }}</h1>
 
-        <!-- Lista dipendenti -->
         {% if dipendenti %}
-            {% for id, nome, foto in dipendenti %}
-                <div class="dipendente">
-                    <img src="{{ url_for('static', filename='foto/' ~ foto) }}" alt="{{ nome }}">
-                    <p>{{ nome }}</p>
-                    <form action="{{ url_for('delete_dipendente', dipendente_id=id) }}" method="post">
-                        <button type="submit">Elimina</button>
-                    </form>
-                    <form action="{{ url_for('edit_dipendente', dipendente_id=id) }}" method="post" enctype="multipart/form-data">
-                        <input type="text" name="nome" placeholder="Nuovo nome" required>
-                        <input type="file" name="foto">
-                        <button type="submit">Modifica</button>
-                    </form>
-                </div>
-            {% endfor %}
+        <table border="1">
+          <tr>
+            <th>ID</th>
+            <th>Nome</th>
+            <th>Foto</th>
+            <th>Azioni</th>
+          </tr>
+          {% for d in dipendenti %}
+          <tr>
+            <td>{{ d.id }}</td>
+            <td>{{ d.nome }}</td>
+            <td>
+              <img src="{{ url_for('static', filename='foto/' ~ d.foto) }}" width="100">
+            </td>
+            <td>
+              <form action="{{ url_for('edit_dipendente', dipendente_id=d.id) }}" method="post" enctype="multipart/form-data" style="display:inline;">
+                <input type="text" name="nome" value="{{ d.nome }}" required>
+                <input type="file" name="foto">
+                <button type="submit">Modifica</button>
+              </form>
+
+              <form action="{{ url_for('delete_dipendente', dipendente_id=d.id) }}" method="post" style="display:inline;" onsubmit="return confirm('Sei sicuro di voler eliminare questo dipendente?');">
+                <button type="submit">Elimina</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </table>
         {% else %}
             <p>Nessun dipendente inserito.</p>
         {% endif %}
 
-        <!-- Aggiungi nuovo dipendente -->
         <h2>Aggiungi dipendente</h2>
         <form action="{{ url_for('admin') }}" method="post" enctype="multipart/form-data">
             <input type="text" name="nome" placeholder="Nome dipendente" required>
