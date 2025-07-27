@@ -2,41 +2,40 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8">
-<title>Accesso Totem</title>
-<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<title>Totem Voti</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    text-align: center;
+    margin-top: 80px;
+  }
+  input {
+    font-size: 28px;
+    padding: 15px;
+    text-align: center;
+    width: 300px;
+  }
+</style>
 <script>
-function checkLen(input) {
+document.addEventListener("DOMContentLoaded", () => {
+  const input = document.getElementById("codice");
+  input.focus(); // mette il focus automatico sul campo
+
+  input.addEventListener("input", () => {
+    // Rimuove tutti i caratteri che non sono numeri
+    input.value = input.value.replace(/[^0-9]/g,'');
+
+    // Quando sono 13 cifre, invia il form automaticamente
     if (input.value.length === 13) {
-        document.getElementById("form").submit();
+      document.getElementById("formCodice").submit();
     }
-}
+  });
+});
 </script>
 </head>
 <body>
-<h1>Inserisci la tua tessera fidelity</h1>
-
-<a href="{{ url_for('index') }}">
-  <button style="margin: 20px; font-size: 20px; padding: 10px 20px;">
-    Torna all'inizio
-  </button>
-</a>
-
-
-<form method="post" autocomplete="off">
-  <input type="text" style="display:none" autocomplete="false" name="hidden-field">
-  
-  <input 
-      type="text" 
-      name="codice" 
-      inputmode="numeric" 
-      pattern="[0-9]*" 
-      maxlength="13" 
-      required 
-      autocomplete="off"
-      oninput="this.value=this.value.replace(/[^0-9]/g,'');"
-      placeholder="Inserisci 13 cifre"
-  >
-</form>
-
+  <form id="formCodice" method="post" autocomplete="off">
+    <input type="text" id="codice" name="codice" maxlength="13" inputmode="numeric" pattern="[0-9]*" autocomplete="off">
+  </form>
 </body>
 </html>
