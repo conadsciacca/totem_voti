@@ -1,10 +1,11 @@
 from werkzeug.utils import secure_filename
-from flask import Flask, render_template, request, redirect, url_for, send_file
+from flask import Flask, render_template, request, redirect, url_for, send_file, session
 import sqlite3, os, csv
 from datetime import datetime
 from io import StringIO
 
 app = Flask(__name__)
+app.secret_key = "scegli_una_chiave_lunga_e_casuale"
 
 DB = 'database.db'
 
@@ -115,8 +116,27 @@ def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        user = request.form['username']
+        pwd = request.form['password']
+        # Cambia qui user e password a piacere
+        if user == 'admin' and pwd == 'mypass123':
+            session['admin'] = True
+            return redirect(url_for('admin'))
+    return render_template('login.html')
+
+@app.route('/logout')
+def logout():
+    session.pop('admin', None)
+    return redirect(url_for('login'))
+
 @app.route('/admin', methods=['GET', 'POST'])
 def admin():
+    if not session.get('admin'):
+    return redirect(url_for('login'))
     if request.method == 'POST':
         nome = request.form['nome']
         file = request.files['foto']
