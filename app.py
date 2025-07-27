@@ -16,25 +16,8 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
 def init_db():
     with sqlite3.connect(DB) as conn:
         c = conn.cursor()
-        # Tabelle principali
-        c.execute('''
-            CREATE TABLE IF NOT EXISTS dipendenti (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                nome TEXT,
-                foto TEXT,
-                store TEXT
-            )
-        ''')
-        c.execute('''
-            CREATE TABLE IF NOT EXISTS voti (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                fidelity TEXT,
-                dipendente_id INTEGER,
-                voto INTEGER,
-                UNIQUE(fidelity,dipendente_id)
-            )
-        ''')
-        # Tabella utenti per login
+
+        # 1. Creazione tabella utenti se non esiste
         c.execute('''
             CREATE TABLE IF NOT EXISTS utenti (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -44,18 +27,37 @@ def init_db():
                 store TEXT
             )
         ''')
-        conn.commit()
-        # Inserisco utenti di default se vuoto
+
+        # 2. Verifica e aggiunge la colonna store_id a dipendenti se non c'è
+        cols = [row[1] for row in c.execute("PRAGMA table_info(dipendenti)")]
+        if "store_id" not in cols:
+            c.execute("ALTER TABLE dipendenti ADD COLUMN store_id TEXT")
+
+        # 3. Creazione tabella voti se non esiste
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS voti (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                fidelity TEXT,
+                dipendente_id INTEGER,
+                voto INTEGER,
+                UNIQUE(fidelity,dipendente_id)
+            )
+        ''')
+
+        # 4. Inserisce utenti base solo se non ci sono
         c.execute("SELECT COUNT(*) FROM utenti")
         if c.fetchone()[0] == 0:
-            utenti = [
-                ('admin_sciacca', 'admin123', 'admin', 'sciacca'),
-                ('admin_altro', 'admin456', 'admin', 'altro'),
-                ('punto_sciacca', 'punto123', 'store', 'sciacca'),
-                ('punto_altro', 'punto456', 'store', 'altro')
-            ]
-            c.executemany("INSERT INTO utenti (username,password,role,store) VALUES (?,?,?,?)", utenti)
-            conn.commit()
+            c.execute("INSERT INTO utenti (username,password,role,store) VALUES (?,?,?,?)",
+                      ("admin1","mypass1","admin","negozio1"))
+            c.execute("INSERT INTO utenti (username,password,role,store) VALUES (?,?,?,?)",
+                      ("admin2","mypass2","admin","negozio2"))
+            c.execute("INSERT INTO utenti (username,password,role,store) VALUES (?,?,?,?)",
+                      ("user1","pass1","user","negozio1"))
+            c.execute("INSERT INTO utenti (username,password,role,store) VALUES (?,?,?,?)",
+                      ("user2","pass2","user","negozio2"))
+
+        conn.commit()
+
 
 def get_dipendenti(store_id):
     with sqlite3.connect(DB) as conn:
