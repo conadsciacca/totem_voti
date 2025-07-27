@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>Vota</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<h1>Vota {{ nome }}</h1>
+
+<a href="{{ url_for('index') }}">
+  <button style="margin: 20px; font-size: 20px; padding: 10px 20px;">
+    Torna all'inizio
+  </button>
+</a>
+
+
+<img src="{{ url_for('static', filename='foto/' + foto) }}" class="big">
+<form method="post">
+  {% for i in range(1,6) %}
+    <button type="submit" name="voto" value="{{ i }}">{{ i }} ★</button>
+  {% endfor %}
+</form>
+</body>
+</html>
