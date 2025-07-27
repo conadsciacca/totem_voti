@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>Statistiche</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<h1>Statistiche voti</h1>
+
+<a href="{{ url_for('index') }}">
+  <button style="margin: 20px; font-size: 20px; padding: 10px 20px;">
+    Torna all'inizio
+  </button>
+</a>
+
+
+<a href="{{ url_for('export_csv') }}">Scarica CSV</a>
+<table>
+<tr><th>Dipendente</th><th>Voti</th><th>Media</th></tr>
+{% for nome, tot, media in stats %}
+<tr><td>{{ nome }}</td><td>{{ tot }}</td><td>{{ media }}</td></tr>
+{% endfor %}
+</table>
+</body>
+</html>

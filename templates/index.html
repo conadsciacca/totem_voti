@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>Accesso Totem</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<script>
+function checkLen(input) {
+    if (input.value.length === 13) {
+        document.getElementById("form").submit();
+    }
+}
+</script>
+</head>
+<body>
+<h1>Inserisci la tua tessera fidelity</h1>
+
+<a href="{{ url_for('index') }}">
+  <button style="margin: 20px; font-size: 20px; padding: 10px 20px;">
+    Torna all'inizio
+  </button>
+</a>
+
+
+<form method="post" id="form">
+  <input type="text" name="codice" maxlength="13" oninput="checkLen(this)" autofocus>
+</form>
+</body>
+</html>
