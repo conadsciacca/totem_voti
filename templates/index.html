@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Totem Voti</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Slab:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background-color: #e42231;
+            font-family: 'Roboto Slab', serif;
+            color: white;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            margin-top: 50px;
+        }
+        .logo {
+            width: 150px;
+            height: 150px;
+            object-fit: contain;
+        }
+        input {
+            padding: 15px;
+            font-size: 22px;
+            border: none;
+            border-radius: 8px;
+            margin-top: 20px;
+            width: 280px;
+            text-align: center;
+        }
+        button {
+            display: none;
+        }
+    </style>
+    <script>
+        function checkLength(el) {
+            // Accetta solo numeri
+            el.value = el.value.replace(/\D/g, '');
+            if (el.value.length === 13) {
+                document.getElementById('form').submit();
+            }
+        }
+        window.onload = function() {
+            document.getElementById("codice").focus();
+        }
+    </script>
+</head>
+<body>
+    <div class="container">
+        <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" class="logo">
+        <h1>Scansiona la tua Conad Carta Insieme</h1>
+        <form method="POST" id="form">
+            <input type="text" id="codice" name="codice" maxlength="13" autofocus oninput="checkLength(this)" autocomplete="off">
+        </form>
+    </div>
+</body>
+</html>

@@ -1,0 +1,273 @@
+from flask import Flask, render_template, request, redirect, url_for, send_file, session
+from werkzeug.utils import secure_filename
+from functools import wraps
+import sqlite3, os, csv
+from datetime import datetime
+from io import StringIO, BytesIO
+
+app = Flask(__name__)
+app.secret_key = "TotemAdminPhabio@2025"
+
+DB = 'database.db'
+
+# ---------- DECORATOR PER PROTEGGERE LE PAGINE ----------
+def login_required(role=None):
+    def decorator(f):
+        @wraps(f)
+        def wrapped(*args, **kwargs):
+            if 'role' not in session:
+                return redirect(url_for('login'))
+
+            if role and session.get('role') != role:
+                return "Non autorizzato", 403
+            return f(*args, **kwargs)
+        return wrapped
+    return decorator
+
+# ---------- FUNZIONI DB ----------
+def init_db():
+    with sqlite3.connect(DB) as conn:
+        c = conn.cursor()
+
+        # Tabella dipendenti
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS dipendenti (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nome TEXT,
+                foto TEXT,
+                store TEXT
+            )
+        ''')
+
+        # Tabella voti
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS voti (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                fidelity TEXT,
+                dipendente_id INTEGER,
+                voto INTEGER,
+                UNIQUE(fidelity,dipendente_id)
+            )
+        ''')
+
+        # Tabella utenti
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS utenti (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT,
+                password TEXT,
+                role TEXT,
+                store TEXT
+            )
+        ''')
+
+        # Inserisci utenti di default se la tabella è vuota
+        c.execute("SELECT COUNT(*) FROM utenti")
+        if c.fetchone()[0] == 0:
+            c.execute("INSERT INTO utenti (username,password,role,store) VALUES (?,?,?,?)",
+                      ("admin", "admin123", "admin", ""))
+            c.execute("INSERT INTO utenti (username,password,role,store) VALUES (?,?,?,?)",
+                      ("store1", "storepass1", "store", "Negozio1"))
+            c.execute("INSERT INTO utenti (username,password,role,store) VALUES (?,?,?,?)",
+                      ("store2", "storepass2", "store", "Negozio2"))
+
+        conn.commit()
+
+def get_dipendenti():
+    store = session.get('store')
+    with sqlite3.connect(DB) as conn:
+        c = conn.cursor()
+        c.execute("SELECT * FROM dipendenti WHERE store=?", (store,))
+        return c.fetchall()
+
+# ---------- LOGIN ----------
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        user = request.form['username']
+        pwd = request.form['password']
+
+        with sqlite3.connect(DB) as conn:
+            c = conn.cursor()
+            c.execute("SELECT role, store FROM utenti WHERE username=? AND password=?", (user, pwd))
+            row = c.fetchone()
+
+        if row:
+            role, store = row
+            session['username'] = user
+            session['role'] = role
+            session['store'] = store
+
+            if role == 'admin':
+                return redirect(url_for('admin'))
+            else:
+                return redirect(url_for('index'))
+        else:
+            return "Credenziali errate", 401
+
+    return render_template('login.html')
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('login'))
+
+# ---------- ROTTE ----------
+@app.route('/', methods=['GET','POST'])
+def index():
+    # Solo utenti store possono accedere
+    if 'role' not in session or session.get('role') != 'store':
+        return redirect(url_for('login'))
+
+    if request.method == 'POST':
+        codice = request.form['codice']
+        if codice.isdigit() and len(codice) == 13:
+            return redirect(url_for('dipendenti_list', fidelity=codice))
+    return render_template('index.html')
+
+@app.route('/dipendenti/<fidelity>')
+def dipendenti_list(fidelity):
+    if 'role' not in session or session.get('role') != 'store':
+        return redirect(url_for('login'))
+
+    dip = get_dipendenti()
+    with sqlite3.connect(DB) as conn:
+        c = conn.cursor()
+        c.execute("SELECT dipendente_id FROM voti WHERE fidelity=?", (fidelity,))
+        votati = [row[0] for row in c.fetchall()]
+    return render_template('dipendenti.html', dipendenti=dip, votati=votati, fidelity=fidelity)
+
+@app.route('/vota/<fidelity>/<int:dipendente_id>', methods=['GET','POST'])
+def vota(fidelity, dipendente_id):
+    if 'role' not in session or session.get('role') != 'store':
+        return redirect(url_for('login'))
+
+    if request.method == 'POST':
+        voto = int(request.form['voto'])
+        with sqlite3.connect(DB) as conn:
+            try:
+                conn.execute("INSERT INTO voti (fidelity,dipendente_id,voto) VALUES (?,?,?)",
+                             (fidelity,dipendente_id,voto))
+                conn.commit()
+            except sqlite3.IntegrityError:
+                pass
+        return redirect(url_for('dipendenti_list', fidelity=fidelity))
+
+    with sqlite3.connect(DB) as conn:
+        c = conn.cursor()
+        c.execute("SELECT nome,foto FROM dipendenti WHERE id=?", (dipendente_id,))
+        dip = c.fetchone()
+    return render_template('voto.html', fidelity=fidelity, dipendente_id=dipendente_id, nome=dip[0], foto=dip[1])
+
+@app.route('/stats')
+@login_required(role='admin')
+def stats():
+    with sqlite3.connect(DB) as conn:
+        c = conn.cursor()
+        c.execute('''
+            SELECT d.nome, COUNT(v.voto), ROUND(AVG(v.voto),2)
+            FROM dipendenti d
+            LEFT JOIN voti v ON d.id=v.dipendente_id
+            GROUP BY d.id
+        ''')
+        stats = c.fetchall()
+    return render_template('stats.html', stats=stats)
+
+@app.route('/export_csv')
+@login_required(role='admin')
+def export_csv():
+    with sqlite3.connect(DB) as conn:
+        c = conn.cursor()
+        c.execute('SELECT fidelity,dipendente_id,voto FROM voti')
+        rows = c.fetchall()
+
+    si = StringIO()
+    cw = csv.writer(si)
+    cw.writerow(["fidelity","dipendente_id","voto"])
+    cw.writerows(rows)
+    buf = BytesIO(si.getvalue().encode('utf-8'))
+    buf.seek(0)
+    return send_file(
+        buf,
+        mimetype="text/csv",
+        as_attachment=True,
+        download_name=f"voti_{datetime.now().strftime('%Y%m%d')}.csv"
+    )
+
+# -------- ADMIN AREA ---------
+UPLOAD_FOLDER = os.path.join('static', 'foto')
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+@app.route('/admin', methods=['GET', 'POST'])
+@login_required(role='admin')
+def admin():
+    if request.method == 'POST':
+        nome = request.form['nome']
+        file = request.files['foto']
+        store = request.form.get('store', '')  # permette di assegnare lo store al dipendente
+
+        if nome and file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            filepath = os.path.join(UPLOAD_FOLDER, filename)
+            file.save(filepath)
+            with sqlite3.connect(DB) as conn:
+                conn.execute(
+                    "INSERT INTO dipendenti (nome,foto,store) VALUES (?,?,?)",
+                    (nome, filename, store)
+                )
+                conn.commit()
+            return redirect(url_for('admin'))
+
+    # Mostra tutti i dipendenti
+    with sqlite3.connect(DB) as conn:
+        c = conn.cursor()
+        c.execute("SELECT * FROM dipendenti")
+        dip = c.fetchall()
+    return render_template('admin.html', dipendenti=dip)
+
+@app.route('/delete/<int:dipendente_id>', methods=['POST'])
+@login_required(role='admin')
+def delete_dipendente(dipendente_id):
+    with sqlite3.connect(DB) as conn:
+        c = conn.cursor()
+        c.execute("SELECT foto FROM dipendenti WHERE id=?", (dipendente_id,))
+        row = c.fetchone()
+        if row:
+            foto = row[0]
+            foto_path = os.path.join(UPLOAD_FOLDER, foto)
+            if os.path.exists(foto_path):
+                os.remove(foto_path)
+        conn.execute("DELETE FROM dipendenti WHERE id=?", (dipendente_id,))
+        conn.execute("DELETE FROM voti WHERE dipendente_id=?", (dipendente_id,))
+        conn.commit()
+    return redirect(url_for('admin'))
+
+@app.route('/edit/<int:dipendente_id>', methods=['POST'])
+@login_required(role='admin')
+def edit_dipendente(dipendente_id):
+    nuovo_nome = request.form['nome']
+    nuovo_store = request.form.get('store', '')
+    file = request.files.get('foto')
+
+    with sqlite3.connect(DB) as conn:
+        if file and file.filename and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            filepath = os.path.join(UPLOAD_FOLDER, filename)
+            file.save(filepath)
+            conn.execute("UPDATE dipendenti SET nome=?, foto=?, store=? WHERE id=?",
+                         (nuovo_nome, filename, nuovo_store, dipendente_id))
+        else:
+            conn.execute("UPDATE dipendenti SET nome=?, store=? WHERE id=?",
+                         (nuovo_nome, nuovo_store, dipendente_id))
+        conn.commit()
+
+    return redirect(url_for('admin'))
+
+# -------- AVVIO ---------
+if __name__ == '__main__':
+    init_db()
+    port = int(os.environ.get("PORT", 5050))
+    app.run(host='0.0.0.0', port=port)
