@@ -2,7 +2,7 @@ from flask import Flask, render_template, request, redirect, url_for, send_file,
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
-from datetime import datetime
+from datetime import datetime, date
 from io import StringIO
 import os, csv
 
@@ -47,6 +47,7 @@ class Voto(Base):
     fidelity = Column(String)
     dipendente_id = Column(Integer, ForeignKey("dipendenti.id"))
     voto = Column(Integer)
+    data_voto = Column(String, default=lambda: date.today().strftime("%d/%m/%Y"))
     dipendente = relationship("Dipendente", back_populates="voti")
     __table_args__ = (UniqueConstraint('fidelity', 'dipendente_id', name='_fidelity_dip_uc'),)
 
@@ -54,48 +55,19 @@ class Voto(Base):
 def init_db():
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
-
-    # utenti da creare
     auto_users = [
-        {
-            "username": "admin_sancipirello",
-            "password_env": "PWD_ADMIN_SANCIPIRELLO",
-            "role": "admin",
-            "store": "pdv_sancipirello"
-        },
-        {
-            "username": "admin_sciacca",
-            "password_env": "PWD_ADMIN_SCIACCA",
-            "role": "admin",
-            "store": "pdv_sciacca"
-        },
-        {
-            "username": "user_sancipirello",
-            "password_env": "PWD_USER_SANCIPIRELLO",
-            "role": "store",
-            "store": "pdv_sancipirello"
-        },
-        {
-            "username": "user_sciacca",
-            "password_env": "PWD_USER_SCIACCA",
-            "role": "store",
-            "store": "pdv_sciacca"
-        }
+        {"username": "admin_sancipirello", "password_env": "PWD_ADMIN_SANCIPIRELLO", "role": "admin", "store": "pdv_sancipirello"},
+        {"username": "admin_sciacca", "password_env": "PWD_ADMIN_SCIACCA", "role": "admin", "store": "pdv_sciacca"},
+        {"username": "user_sancipirello", "password_env": "PWD_USER_SANCIPIRELLO", "role": "store", "store": "pdv_sancipirello"},
+        {"username": "user_sciacca", "password_env": "PWD_USER_SCIACCA", "role": "store", "store": "pdv_sciacca"}
     ]
-
     for u in auto_users:
         pwd = os.getenv(u["password_env"])
         if pwd:
             exists = db.query(Utente).filter_by(username=u["username"]).first()
             if not exists:
                 hashed = generate_password_hash(pwd)
-                db.add(Utente(
-                    username=u["username"],
-                    password=hashed,
-                    role=u["role"],
-                    store=u["store"]
-                ))
-                print(f"Creato utente {u['username']} da {u['password_env']}")
+                db.add(Utente(username=u["username"], password=hashed, role=u["role"], store=u["store"]))
         else:
             print(f"ATTENZIONE: variabile {u['password_env']} non trovata!")
     db.commit()
@@ -173,7 +145,8 @@ def vota(fidelity, dipendente_id):
     if request.method == 'POST':
         voto = int(request.form['voto'])
         try:
-            db.add(Voto(fidelity=fidelity, dipendente_id=dipendente_id, voto=voto))
+            db.add(Voto(fidelity=fidelity, dipendente_id=dipendente_id, voto=voto,
+                        data_voto=date.today().strftime("%d/%m/%Y")))
             db.commit()
         except:
             db.rollback()
@@ -191,7 +164,6 @@ def vota(fidelity, dipendente_id):
 def admin():
     store_id = session.get('store')
     db = SessionLocal()
-
     if request.method == 'POST':
         nome = request.form['nome']
         file = request.files['foto']
@@ -203,7 +175,6 @@ def admin():
             db.commit()
             db.close()
             return redirect(url_for('admin'))
-
     dip = db.query(Dipendente).filter(Dipendente.store_id==store_id).all()
     db.close()
     return render_template('admin.html', dipendenti=dip)
@@ -243,39 +214,56 @@ def edit_dipendente(dipendente_id):
     db.close()
     return redirect(url_for('admin'))
 
-@app.route('/stats')
+@app.route('/stats', methods=['GET'])
 @login_required(role='admin')
 def stats():
     store_id = session.get('store')
+    giorno = request.args.get('giorno')
+    mese = request.args.get('mese')
     db = SessionLocal()
-    results = db.query(
+    query = db.query(
         Dipendente.nome,
         func.count(Voto.voto),
         func.round(func.avg(Voto.voto),2)
-    ).outerjoin(Voto).filter(Dipendente.store_id==store_id).group_by(Dipendente.id).all()
+    ).outerjoin(Voto).filter(Dipendente.store_id==store_id)
+    if giorno and mese:
+        query = query.filter(Voto.data_voto == f"{giorno}/{mese}/{datetime.now().year}")
+    results = query.group_by(Dipendente.id).all()
     db.close()
-    return render_template('stats.html', stats=results)
+    return render_template('stats.html', stats=results, giorno=giorno, mese=mese)
 
 @app.route('/export_csv')
 @login_required(role='admin')
 def export_csv():
     store_id = session.get('store')
     db = SessionLocal()
-    rows = db.query(Voto.fidelity, Dipendente.nome, Voto.voto).join(Dipendente).filter(Dipendente.store_id==store_id).all()
+    rows = db.query(Voto.fidelity, Dipendente.nome, Voto.voto, Voto.data_voto)\
+             .join(Dipendente)\
+             .filter(Dipendente.store_id==store_id).all()
     db.close()
 
     si = StringIO()
     cw = csv.writer(si)
-    cw.writerow(["fidelity","dipendente","voto"])
+    cw.writerow(["fidelity","dipendente","voto","data_voto"])
     cw.writerows(rows)
-    output = si.getvalue()
+    si.seek(0)
 
     return send_file(
-        StringIO(output),
+        si,
         mimetype="text/csv",
         as_attachment=True,
         download_name=f"voti_{datetime.now().strftime('%Y%m%d')}.csv"
     )
+
+@app.route('/reset_voti', methods=['POST'])
+@login_required(role='admin')
+def reset_voti():
+    db = SessionLocal()
+    today = date.today().strftime("%d/%m/%Y")
+    db.query(Voto).filter(Voto.data_voto==today).delete()
+    db.commit()
+    db.close()
+    return redirect(url_for('stats'))
 
 # ---------------- MAIN ----------------
 init_db()
