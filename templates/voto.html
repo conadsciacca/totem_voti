@@ -74,9 +74,16 @@
   button.voto:hover { background: #ffdddd; }
 </style>
 <script>
-  let timeout = setTimeout(() => window.location.href = "/", 30000);
-  document.addEventListener("mousemove", () => { clearTimeout(timeout); timeout = setTimeout(() => window.location.href = "/", 30000); });
-  document.addEventListener("keydown", () => { clearTimeout(timeout); timeout = setTimeout(() => window.location.href = "/", 30000); });
+  let timeout = setTimeout(() => window.location.href = "/scan", 30000);
+document.addEventListener("mousemove", () => { 
+  clearTimeout(timeout); 
+  timeout = setTimeout(() => window.location.href = "/scan", 30000); 
+});
+document.addEventListener("keydown", () => { 
+  clearTimeout(timeout); 
+  timeout = setTimeout(() => window.location.href = "/scan", 30000); 
+});
+
 </script>
 </head>
 <body>
