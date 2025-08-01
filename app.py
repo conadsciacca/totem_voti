@@ -124,11 +124,21 @@ def logout():
 @app.route('/', methods=['GET','POST'])
 @login_required(role='store')
 def index():
+    # Scelgo il logo in base all'utente
+    user = session.get('user', '')
+    if user == "user_sciacca":
+        logo_file = "logo_sciacca.png"
+    elif user == "user_sancipirello":
+        logo_file = "logo_sancipirello.png"
+    else:
+        logo_file = "logo.png"
+
     if request.method == 'POST':
         codice = request.form.get('codice', '')
-        if codice.isdigit() and len(codice) == 12:
+        if codice.isdigit() and len(codice) == 12:  # solo 12 cifre come richiesto
             return redirect(url_for('dipendenti_list', fidelity=codice))
-    return render_template('index.html')
+
+    return render_template('index.html', logo_file=logo_file)
 
 @app.route('/dipendenti/<fidelity>')
 @login_required(role='store')
