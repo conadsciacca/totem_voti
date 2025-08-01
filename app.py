@@ -111,7 +111,7 @@ def login():
             session['user'] = u.username
             session['role'] = u.role
             session['store'] = u.store
-            return redirect(url_for('admin' if u.role=='admin' else 'index'))
+            return redirect(url_for('admin' if u.role=='admin' else 'scan'))
         return "Credenziali errate", 401
     return render_template('login.html')
 
@@ -120,10 +120,14 @@ def logout():
     session.clear()
     return redirect(url_for('login'))
 
+@app.route('/')
+def home_redirect():
+    return redirect(url_for('login'))
+
 # ---------------- STORE ROUTES ----------------
-@app.route('/', methods=['GET','POST'])
+@app.route('/scan', methods=['GET','POST'])
 @login_required(role='store')
-def index():
+def scan():
     # Scelgo il logo in base all'utente
     user = session.get('user', '')
     if user == "user_sciacca":
