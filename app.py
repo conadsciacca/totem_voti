@@ -234,6 +234,8 @@ def stats():
     db.close()
     return render_template('stats.html', stats=results, giorno=giorno, mese=mese)
 
+from io import BytesIO  # assicurati di averlo in cima al file
+
 @app.route('/export_csv')
 @login_required(role='admin')
 def export_csv():
@@ -245,26 +247,25 @@ def export_csv():
 
     db = SessionLocal()
     query = db.query(
-        Voto.fidelity,
         Dipendente.nome,
         Voto.voto,
         Voto.data_voto
     ).join(Dipendente).filter(Dipendente.store_id == store_id)
 
-    # Se ci sono filtri giorno e mese, li applico
+    # Applica filtro se giorno e mese sono presenti
     if giorno and mese:
         query = query.filter(Voto.data_voto == f"{giorno}/{mese}/{datetime.now().year}")
 
     rows = query.all()
     db.close()
 
-    # Scriviamo il CSV in memoria (StringIO)
+    # Scrive il CSV in memoria (senza la colonna fidelity)
     si = StringIO()
     cw = csv.writer(si)
-    cw.writerow(["fidelity", "dipendente", "voto", "data_voto"])
+    cw.writerow(["dipendente", "voto", "data_voto"])
     cw.writerows(rows)
 
-    # Convertiamo la stringa in bytes e creiamo un BytesIO
+    # Converte la stringa in bytes e prepara per send_file
     output = BytesIO()
     output.write(si.getvalue().encode('utf-8'))
     output.seek(0)
@@ -275,6 +276,7 @@ def export_csv():
         as_attachment=True,
         download_name=f"voti_{datetime.now().strftime('%Y%m%d')}.csv"
     )
+
 
 @app.route('/reset_voti', methods=['POST'])
 @login_required(role='admin')
