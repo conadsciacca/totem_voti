@@ -126,7 +126,7 @@ def logout():
 def index():
     if request.method == 'POST':
         codice = request.form.get('codice', '')
-        if codice.isdigit() and len(codice) == 13:
+        if codice.isdigit() and len(codice) == 12:
             return redirect(url_for('dipendenti_list', fidelity=codice))
     return render_template('index.html')
 
