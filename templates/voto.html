@@ -82,8 +82,11 @@
 <body>
   <header>
     <h1>Vota</h1>
-    <form action="/" method="get"><button type="submit">Home</button></form>
+    <form action="{{ url_for('scan') }}" method="get">
+      <button type="submit">Home</button>
+    </form>
   </header>
+
 
   <div class="container">
     <div class="foto">
