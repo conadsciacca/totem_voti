@@ -5,6 +5,8 @@ from functools import wraps
 from datetime import datetime, date
 from io import StringIO
 import os, csv
+from io import BytesIO 
+
 
 from sqlalchemy import create_engine, Column, Integer, String, Float, ForeignKey, UniqueConstraint, func
 from sqlalchemy.orm import sessionmaker, declarative_base, relationship, scoped_session
@@ -236,20 +238,39 @@ def stats():
 @login_required(role='admin')
 def export_csv():
     store_id = session.get('store')
+
+    # Leggi eventuali filtri dalla query string
+    giorno = request.args.get('giorno')
+    mese = request.args.get('mese')
+
     db = SessionLocal()
-    rows = db.query(Voto.fidelity, Dipendente.nome, Voto.voto, Voto.data_voto)\
-             .join(Dipendente)\
-             .filter(Dipendente.store_id==store_id).all()
+    query = db.query(
+        Voto.fidelity,
+        Dipendente.nome,
+        Voto.voto,
+        Voto.data_voto
+    ).join(Dipendente).filter(Dipendente.store_id == store_id)
+
+    # Se ci sono filtri giorno e mese, li applico
+    if giorno and mese:
+        query = query.filter(Voto.data_voto == f"{giorno}/{mese}/{datetime.now().year}")
+
+    rows = query.all()
     db.close()
 
+    # Scriviamo il CSV in memoria (StringIO)
     si = StringIO()
     cw = csv.writer(si)
-    cw.writerow(["fidelity","dipendente","voto","data_voto"])
+    cw.writerow(["fidelity", "dipendente", "voto", "data_voto"])
     cw.writerows(rows)
-    si.seek(0)
+
+    # Convertiamo la stringa in bytes e creiamo un BytesIO
+    output = BytesIO()
+    output.write(si.getvalue().encode('utf-8'))
+    output.seek(0)
 
     return send_file(
-        si,
+        output,
         mimetype="text/csv",
         as_attachment=True,
         download_name=f"voti_{datetime.now().strftime('%Y%m%d')}.csv"
