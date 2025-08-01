@@ -16,8 +16,8 @@
         }
         .container { margin-top: 50px; }
         .logo {
-            width: 150px;
-            height: 150px;
+            width: 220px;
+            height: 220px;
             object-fit: contain;
         }
         input {
@@ -45,11 +45,7 @@
 </head>
 <body>
     <div class="container">
-                .logo {
-            width: 220px;
-            height: 220px;
-            object-fit: contain;
-        }
+        <img src="{{ url_for('static', filename=logo_file) }}" alt="Logo" class="logo">
         <h1>Scansiona la tua Conad Carta Insieme</h1>
         <form method="POST" id="form">
             <input type="text" id="codice" name="codice" maxlength="12" autofocus oninput="checkLength(this)" autocomplete="off">
