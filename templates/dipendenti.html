@@ -82,9 +82,9 @@
   </header>
   <div class="grid">
     {% for d in dipendenti %}
-      <div class="card {% if d[0] in votati %}disabled{% endif %}" onclick="window.location.href='/vota/{{ fidelity }}/{{ d[0] }}'">
-        <img src="/static/foto/{{ d[2] }}" alt="{{ d[1] }}">
-        <h3>{{ d[1] }}</h3>
+      <div class="card {% if d.id in votati %}disabled{% endif %}" onclick="window.location.href='/vota/{{ fidelity }}/{{ d.id }}'">
+        <img src="/static/foto/{{ d.foto if d.foto else 'default.png' }}" alt="{{ d.nome }}">
+        <h3>{{ d.nome }}</h3>
       </div>
     {% endfor %}
   </div>
