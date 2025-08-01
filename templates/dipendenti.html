@@ -78,7 +78,7 @@
 <body>
   <header>
     <h1>Seleziona il dipendente</h1>
-    <form action="/" method="get"><button type="submit">Home</button></form>
+    <form action="{{ url_for('scan') }}" method="get"><button type="submit">Home</button></form>
   </header>
   <div class="grid">
     {% for d in dipendenti %}
